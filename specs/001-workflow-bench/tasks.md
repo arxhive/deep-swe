@@ -31,13 +31,13 @@ description: "Task list for Workflow Bench implementation"
 
 **Purpose**: Create the `uv` package skeleton so everything else is importable and testable.
 
-- [ ] T001 Create the package layout: `bench/`, `bench/src/wfbench/__init__.py`, `bench/tests/unit/`, `bench/tests/integration/`, `bench/tests/fixtures/tasks/`, with empty `__init__.py` where needed, per plan.md Project Structure.
-- [ ] T002 Create `bench/pyproject.toml`: project name `wfbench`, `requires-python = ">=3.11"`, no runtime dependencies, `[project.optional-dependencies] dev = ["pytest"]`, `[project.scripts] wfbench = "wfbench.cli:main"`, and a `src/` layout build config (setuptools or hatchling). Honor NFR-007 (stdlib-only runtime).
-- [ ] T003 [P] Configure pytest in `bench/pyproject.toml` (or `bench/pytest.ini`): testpaths, and register the `integration` marker so docker tests can be selected/deselected.
-- [ ] T004 [P] Add `bench/README.md` with the one-paragraph purpose and a pointer to `specs/001-workflow-bench/quickstart.md`.
-- [ ] T005 [P] Create `bench/src/wfbench/logging_setup.py`: a `configure_logging(verbose: bool) -> None` that sets up structured logging (level, format with timestamps) to stderr. Docstring on the public function.
-- [ ] T006 [P] Create `bench/src/wfbench/errors.py`: custom exception hierarchy - `WfbenchError` (base), `PreflightError`, `CorpusError`, `SelectionError`, `RuntimeBuildError`, `ConfigError`, `DockerError`, `AgentError`, `GradingError`. Each carries a clear message; no logic.
-- [ ] T007 [P] Create `bench/src/wfbench/config.py`: module-level constants only (no logic) - default paths (`DEFAULT_CORPUS = "tasks"`, `DEFAULT_JOBS = "jobs"`, runtime cache subdir, container mount points `/opt/wfbench`, `/tests`, `/logs`, `/work`), pinned `CLAUDE_CODE_VERSION` and `NODE_IMAGE = "node:20-bookworm-slim"`, the `DOCKER_PLATFORM = "linux/amd64"` constant, env var names (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`), and the multi-line `BENCHMARK_DIRECTIVE` neutralization text (per research.md R6). No magic strings elsewhere.
+- [X] T001 Create the package layout: `bench/`, `bench/src/wfbench/__init__.py`, `bench/tests/unit/`, `bench/tests/integration/`, `bench/tests/fixtures/tasks/`, with empty `__init__.py` where needed, per plan.md Project Structure.
+- [X] T002 Create `bench/pyproject.toml`: project name `wfbench`, `requires-python = ">=3.11"`, no runtime dependencies, `[project.optional-dependencies] dev = ["pytest"]`, `[project.scripts] wfbench = "wfbench.cli:main"`, and a `src/` layout build config (setuptools or hatchling). Honor NFR-007 (stdlib-only runtime).
+- [X] T003 [P] Configure pytest in `bench/pyproject.toml` (or `bench/pytest.ini`): testpaths, and register the `integration` marker so docker tests can be selected/deselected.
+- [X] T004 [P] Add `bench/README.md` with the one-paragraph purpose and a pointer to `specs/001-workflow-bench/quickstart.md`.
+- [X] T005 [P] Create `bench/src/wfbench/logging_setup.py`: a `configure_logging(verbose: bool) -> None` that sets up structured logging (level, format with timestamps) to stderr. Docstring on the public function.
+- [X] T006 [P] Create `bench/src/wfbench/errors.py`: custom exception hierarchy - `WfbenchError` (base), `PreflightError`, `CorpusError`, `SelectionError`, `RuntimeBuildError`, `ConfigError`, `DockerError`, `AgentError`, `GradingError`. Each carries a clear message; no logic.
+- [X] T007 [P] Create `bench/src/wfbench/config.py`: module-level constants only (no logic) - default paths (`DEFAULT_CORPUS = "tasks"`, `DEFAULT_JOBS = "jobs"`, runtime cache subdir, container mount points `/opt/wfbench`, `/tests`, `/logs`, `/work`), pinned `CLAUDE_CODE_VERSION` and `NODE_IMAGE = "node:20-bookworm-slim"`, the `DOCKER_PLATFORM = "linux/amd64"` constant, env var names (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`), and the multi-line `BENCHMARK_DIRECTIVE` neutralization text (per research.md R6). No magic strings elsewhere.
 
 **Checkpoint**: `cd bench && uv sync` succeeds; `uv run python -c "import wfbench"` works; `uv run pytest` collects zero tests without error.
 

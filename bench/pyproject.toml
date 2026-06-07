@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wfbench"
+version = "0.1.0"
+description = "Benchmark Claude Code workflows against the deep-swe task corpus."
+readme = "README.md"
+requires-python = ">=3.11"
+# NFR-007: no third-party runtime dependencies; standard library only.
+dependencies = []
+
+[project.scripts]
+wfbench = "wfbench.cli:main"
+
+# Dev tooling installed by `uv sync` by default (PEP 735 dependency group).
+# Runtime stays stdlib-only (NFR-007); these are test/lint tools only.
+[dependency-groups]
+dev = ["pytest>=8.0", "pylint>=3.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wfbench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: docker- and credential-dependent tests; auto-skip when unavailable.",
+]
+
+[tool.pylint.main]
+# Source lives under src/ (src layout).
+init-hook = "import sys; sys.path.insert(0, 'src')"
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint."messages control"]
+# Keep the lint signal focused on the owner's standards (errors, undefined names,
+# unused vars, function size). Silence opinionated style noise that fights stdlib idioms.
+disable = [
+    "missing-module-docstring",
+    "too-few-public-methods",
+    "duplicate-code",
+]
