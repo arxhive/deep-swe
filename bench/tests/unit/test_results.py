@@ -141,6 +141,49 @@ def test_result_to_dict_serializes_outcome_value_and_no_credential() -> None:
     assert "value" not in data
 
 
+def test_classify_outcome_precedence_provisioning_beats_agent_and_verifier() -> None:
+    """provisioning_failed takes precedence over agent_failed and verifier_failed (R10)."""
+    outcome, reason = classify_outcome(1.0, provisioning_failed=True, agent_failed=True, verifier_failed=True)
+    assert outcome is Outcome.NOT_ATTEMPTED
+    assert "provisioned" in reason
+
+
+def test_classify_outcome_agent_beats_verifier() -> None:
+    """agent_failed takes precedence over verifier_failed when both are set (R10)."""
+    outcome, reason = classify_outcome(None, agent_failed=True, verifier_failed=True)
+    assert outcome is Outcome.ERRORED
+    assert "agent" in reason
+
+
+def test_classify_outcome_distinct_messages_agent_vs_verifier() -> None:
+    """agent_failed and verifier_failed produce distinct reason strings."""
+    _, agent_msg = classify_outcome(None, agent_failed=True)
+    _, verifier_msg = classify_outcome(None, verifier_failed=True)
+    assert agent_msg != verifier_msg
+    assert "agent" in agent_msg
+    assert "verifier" in verifier_msg
+
+
+def test_classify_outcome_partial_reward_is_failed() -> None:
+    """A reward between 0 and 1 (e.g. 0.5) classifies as FAILED, not PASSED (R10)."""
+    for partial in (0.5, 0.99, -1.0):
+        outcome, reason = classify_outcome(partial)
+        assert outcome is Outcome.FAILED, f"expected FAILED for reward={partial}"
+        assert reason
+
+
+def test_build_comparison_ranking_slug_tiebreak() -> None:
+    """When common-attempted and own rates tie, workflows rank alphabetically by slug."""
+    selection_ids = ["t1"]
+    run_z = _run_for("z-wf", {"t1": Outcome.PASSED}, selection_ids)
+    run_a = _run_for("a-wf", {"t1": Outcome.PASSED}, selection_ids)
+
+    comparison = build_comparison("r1", "m", {"task_ids": selection_ids}, [run_z, run_a])
+
+    # Both pass t1 (100%); alphabetical slug order must decide.
+    assert comparison.ranking == ["a-wf", "z-wf"]
+
+
 def test_errored_before_edit_result_serializes_and_tallies() -> None:
     """An errored-before-edit attempt serializes with patch_present False + a reason,
     and still counts in the run tally (SC-004/SC-006)."""

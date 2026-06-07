@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from wfbench import cli
+from wfbench.errors import WfbenchError
 from wfbench.preflight import Credential, CredentialKind
 from wfbench.results import Outcome, Result, build_comparison, build_run
 from wfbench.selection import Selection
@@ -123,3 +124,32 @@ def test_prepare_runtime_no_credential_needed(monkeypatch, tmp_path, capsys):
 
     assert cli.main(["prepare-runtime", "--jobs-dir", str(tmp_path)]) == cli.EXIT_OK
     assert str(built) in capsys.readouterr().out
+
+
+def test_run_tasks_comma_split_selects_multiple(stub_pipeline, synthetic_corpus, tmp_path):
+    """`--tasks a,b` resolves multiple explicit task ids from a comma-separated list."""
+    jobs = tmp_path / "jobs"
+    argv = (
+        ["run", "--command", "/somecode", "--tasks", "alpha-task,beta-task"]
+        + _base_run_args(synthetic_corpus, jobs)
+    )
+
+    assert cli.main(argv) == cli.EXIT_OK
+    selection = stub_pipeline["cfg"].selection
+    assert set(selection.task_ids) == {"alpha-task", "beta-task"}
+
+
+def test_wfbench_error_maps_to_exit_internal(stub_pipeline, monkeypatch, synthetic_corpus, tmp_path):
+    """An unexpected WfbenchError from the runner maps to EXIT_INTERNAL (1), not EXIT_USAGE (2)."""
+    jobs = tmp_path / "jobs"
+
+    def raise_wfbench(cfg, ref, tasks, runtime_dir, config_dir, docker, **kwargs):
+        raise WfbenchError("simulated unexpected harness error")
+
+    monkeypatch.setattr(cli, "run_workflow", raise_wfbench)
+    argv = (
+        ["run", "--command", "/somecode", "--task", "alpha-task"]
+        + _base_run_args(synthetic_corpus, jobs)
+    )
+
+    assert cli.main(argv) == cli.EXIT_INTERNAL

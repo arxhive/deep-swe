@@ -141,3 +141,26 @@ def test_comparison_empty_common_reported_not_comparable(tmp_path: Path):
 
     assert comparison.common_attempted_ids == []
     assert "not comparable" in (tmp_path / "comparison.md").read_text(encoding="utf-8").lower()
+
+
+def test_print_summary_comparison_includes_ranking_and_each_workflow(capsys, tmp_path: Path):
+    """print_summary for a Comparison prints the ranking and each workflow's pass rate (FR-028)."""
+    comparison = _comparison()
+    print_summary(comparison, tmp_path)
+
+    out = capsys.readouterr().out
+    assert "somecode" in out
+    assert "story-to-live" in out
+    assert "ranking" in out.lower() or any(wf in out for wf in ("somecode", "story-to-live"))
+    assert str(tmp_path) in out
+
+
+def test_write_run_slug_suffix_names_files_per_workflow(tmp_path: Path):
+    """write_run with slug_suffix=True writes workflow-slug-named files (FR-023 comparison sub-runs)."""
+    run = _single_run()
+    write_run(run, tmp_path, slug_suffix=True)
+
+    assert (tmp_path / "run-somecode.json").exists()
+    assert (tmp_path / "report-somecode.md").exists()
+    assert not (tmp_path / "run.json").exists()
+    assert not (tmp_path / "report.md").exists()

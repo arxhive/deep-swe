@@ -49,10 +49,15 @@ def test_resolve_no_credential_message_names_both_forms() -> None:
     assert "claude setup-token" in message
 
 
-def test_resolve_both_credentials_rejected() -> None:
-    """Both credentials set is an error (exactly one must be present)."""
-    with pytest.raises(PreflightError):
+def test_resolve_both_credentials_rejected_message_is_actionable() -> None:
+    """The both-credentials message names both vars and tells the user what to do."""
+    with pytest.raises(PreflightError) as excinfo:
         resolve_credential({"ANTHROPIC_API_KEY": "a", "CLAUDE_CODE_OAUTH_TOKEN": "b"})
+
+    message = str(excinfo.value)
+    assert "ANTHROPIC_API_KEY" in message
+    assert "CLAUDE_CODE_OAUTH_TOKEN" in message
+    assert "Unset one" in message
 
 
 def test_resolve_blank_values_treated_as_absent() -> None:
@@ -74,10 +79,12 @@ def test_require_model_returns_trimmed() -> None:
     assert require_model("  claude-opus-4-8 ") == "claude-opus-4-8"
 
 
-def test_check_docker_raises_when_unavailable() -> None:
-    """check_docker raises PreflightError when the daemon does not respond."""
-    with pytest.raises(PreflightError):
+def test_check_docker_raises_actionable_message_when_unavailable() -> None:
+    """check_docker raises PreflightError with a message naming docker (NFR-006)."""
+    with pytest.raises(PreflightError) as excinfo:
         check_docker(_FakeDocker(available=False))
+
+    assert "docker" in str(excinfo.value).lower()
 
 
 def test_preflight_run_composes_all_checks() -> None:
