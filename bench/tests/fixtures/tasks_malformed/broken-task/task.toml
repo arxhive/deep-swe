@@ -1,0 +1,17 @@
+schema_version = "1.1"
+[task]
+name = "synthetic/broken-task"
+base_commit_hash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+[metadata]
+task_id = "broken-task"
+display_title = "Broken synthetic task (missing language key)"
+[verifier]
+timeout_sec = 300.0
+[agent]
+timeout_sec = 600.0
+[environment]
+build_timeout_sec = 600.0
+docker_image = "public.ecr.aws/example/synthetic:broken"
+cpus = 2
+memory_mb = 8192
+allow_internet = false

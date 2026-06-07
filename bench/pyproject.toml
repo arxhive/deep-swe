@@ -35,6 +35,15 @@ init-hook = "import sys; sys.path.insert(0, 'src')"
 [tool.pylint.format]
 max-line-length = 100
 
+[tool.pylint.design]
+# Result/Run/Comparison/Task/RunConfig are data containers whose fields are mandated
+# by data-model.md (FR-019); the per-task pipeline functions legitimately take
+# task + config + workflow + runtime/config dirs + docker. Allow these wider shapes
+# rather than fragmenting cohesive records or threading state through globals.
+max-attributes = 16
+max-args = 8
+max-positional-arguments = 8
+
 [tool.pylint."messages control"]
 # Keep the lint signal focused on the owner's standards (errors, undefined names,
 # unused vars, function size). Silence opinionated style noise that fights stdlib idioms.
