@@ -40,6 +40,14 @@ def test_result_serializer_excludes_any_credential_value() -> None:
     assert _SECRET not in str(data)
 
 
+def test_credential_repr_redacts_value() -> None:
+    """Credential.__repr__ must not expose the secret value (prevents accidental log leaks)."""
+    cred = Credential(kind=CredentialKind.API_KEY, value=_SECRET)
+    representation = repr(cred)
+    assert _SECRET not in representation
+    assert "redacted" in representation
+
+
 def test_run_and_comparison_serializers_have_no_credential() -> None:
     """Run and Comparison serializers never expose a credential field or value."""
     selection = {"task_ids": ["t1"]}

@@ -85,6 +85,17 @@ def test_materialize_missing_commands_raises(tmp_path: Path) -> None:
         materialize_config(config, tmp_path / "out")
 
 
+def test_materialize_missing_skills_raises(tmp_path: Path) -> None:
+    """A source lacking skills/ raises ConfigError (the workflow cannot resolve its skills)."""
+    config = tmp_path / ".claude"
+    config.mkdir()
+    (config / "commands").mkdir()
+    # skills/ deliberately absent
+
+    with pytest.raises(ConfigError):
+        materialize_config(config, tmp_path / "out")
+
+
 def test_materialize_missing_source_raises(tmp_path: Path) -> None:
     """A non-existent source config raises ConfigError."""
     with pytest.raises(ConfigError):

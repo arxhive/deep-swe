@@ -41,6 +41,10 @@ class Credential:
     kind: CredentialKind
     value: str
 
+    def __repr__(self) -> str:
+        """Return a redacted representation so the value never appears in logs."""
+        return f"Credential(kind={self.kind!r}, value=<redacted>)"
+
     @property
     def env_var(self) -> str:
         """Return the docker env var NAME to forward (value inherited from the host env)."""
