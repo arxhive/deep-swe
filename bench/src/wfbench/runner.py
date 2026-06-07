@@ -17,11 +17,11 @@ from .corpus import Task
 from .docker_cli import DockerCli
 from .errors import AgentError, GradingError
 from .preflight import Credential
+from .prompt import WorkflowRef
 from .results import Comparison, Outcome, Result, Run, build_comparison, build_run, classify_outcome
 from .selection import Selection
 from .usage import parse_agent_usage
 from .write_artifacts import write_json_file, write_text_file
-from .prompt import WorkflowRef
 
 logger = logging.getLogger(__name__)
 
@@ -54,20 +54,23 @@ def _write_agent_artifacts(artifacts_dir: Path, agent: AgentOutcome) -> None:
     write_text_file(artifacts_dir / config.AGENT_ERR, agent.stderr)
 
 
-def _not_attempted_result(
-    task: Task, ref: WorkflowRef, cfg: RunConfig, reason: str
+def _terminal_result(
+    task: Task, ref: WorkflowRef, cfg: RunConfig, outcome: Outcome, reason: str
 ) -> Result:
-    """Build a NOT_ATTEMPTED ``Result`` for a task whose container never started."""
-    rel = f"tasks/{task.task_id}/{ref.slug}"
+    """Build a zero-duration ``Result`` for terminal non-gradeable outcomes.
+
+    Used for NOT_ATTEMPTED (container never started) and ERRORED (grading
+    harness failure). The two callers differ only in ``outcome``.
+    """
     return Result(
         workflow_slug=ref.slug,
         workflow_token=ref.token,
         task_id=task.task_id,
-        outcome=Outcome.NOT_ATTEMPTED,
+        outcome=outcome,
         model=cfg.model,
         duration_sec=0.0,
         reason=reason,
-        artifacts_dir=rel,
+        artifacts_dir=f"tasks/{task.task_id}/{ref.slug}",
     )
 
 
@@ -132,30 +135,15 @@ def run_task(
         result = _assemble_result(task, ref, cfg, agent, grading)
     except AgentError as exc:
         logger.warning("Task '%s': not attempted: %s", task.task_id, exc)
-        result = _not_attempted_result(task, ref, cfg, str(exc))
+        result = _terminal_result(task, ref, cfg, Outcome.NOT_ATTEMPTED, str(exc))
     except GradingError as exc:
         logger.warning("Task '%s': grading could not run: %s", task.task_id, exc)
-        result = _errored_result(task, ref, cfg, str(exc))
+        result = _terminal_result(task, ref, cfg, Outcome.ERRORED, str(exc))
     finally:
         if container_id is not None:
             docker.rm_force(container_id)
     write_json_file(artifacts_dir / config.RESULT_JSON, result.to_dict())
     return result
-
-
-def _errored_result(task: Task, ref: WorkflowRef, cfg: RunConfig, reason: str) -> Result:
-    """Build an ERRORED ``Result`` for a task whose grading failed at harness level."""
-    rel = f"tasks/{task.task_id}/{ref.slug}"
-    return Result(
-        workflow_slug=ref.slug,
-        workflow_token=ref.token,
-        task_id=task.task_id,
-        outcome=Outcome.ERRORED,
-        model=cfg.model,
-        duration_sec=0.0,
-        reason=reason,
-        artifacts_dir=rel,
-    )
 
 
 def _write_reward_file(artifacts_dir: Path, reward: Optional[float]) -> None:
@@ -193,7 +181,7 @@ def _run_one_task(
         # Deliberate last-resort guard (NFR-005): one task's unexpected failure must
         # never abort the batch. The full traceback is logged; the task is errored.
         logger.exception("Task '%s': unexpected failure; recording errored.", task_id)
-        return _errored_result(task, ref, cfg, f"unexpected harness error: {exc}")
+        return _terminal_result(task, ref, cfg, Outcome.ERRORED, f"unexpected harness error: {exc}")
 
 
 def run_workflow(

@@ -22,11 +22,10 @@ _EXCLUDE_SET = frozenset(CONFIG_EXCLUDE)
 
 def _ignore_excluded(_dir: str, names: list[str]) -> set[str]:
     """``copytree`` ignore callback: skip excluded names and any cache-like entries."""
-    skipped = set()
-    for name in names:
-        if name in _EXCLUDE_SET or "cache" in name.lower() or name.endswith(".jsonl"):
-            skipped.add(name)
-    return skipped
+    return {
+        name for name in names
+        if name in _EXCLUDE_SET or "cache" in name.lower() or name.endswith(".jsonl")
+    }
 
 
 def _copy_entry(src_entry: Path, dest_entry: Path) -> None:
