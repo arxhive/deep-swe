@@ -164,11 +164,11 @@ description: "Task list for Workflow Bench implementation"
 
 **Purpose**: Final hardening and validation across stories.
 
-- [ ] T043 [P] Verify no-em-dash / no-attribution and docstring coverage across `bench/src/wfbench/*.py`; ensure every public function has a docstring and no function exceeds 50 lines / nesting 3 (owner standards).
-- [ ] T044 [P] Add a structured-logging pass: confirm every user-facing action logs input received / action taken / outcome (success/failure with error detail) in `runner.py`, `agent_runner.py`, `grader.py`, `cli.py` (software-engineering skill requirement / Observability).
-- [ ] T045 Confirm the credential value never reaches any artifact or log: grep-style unit assertion + manual review of `to_dict()` serializers and logging calls (security). Pass the credential to `docker run` as a name-only `-e ANTHROPIC_API_KEY` / `-e CLAUDE_CODE_OAUTH_TOKEN` (value inherited from the harness env via `DockerCli`'s child-process env), NOT as `-e NAME=<value>`, so the secret never appears in any argv that the docker wrapper or structured logging (T044) might record; if any argv is ever logged, redact credential env values.
-- [ ] T046 Run the full gate from `bench/`: `uv run pytest`, `uv run pylint src/wfbench`, `uv run python -m py_compile src/wfbench/*.py`; fix all findings.
-- [ ] T047 Execute the `quickstart.md` walkthrough end-to-end against a 1-task subset with a real credential (when available) to validate SC-001/SC-005/SC-007/SC-008/SC-009; record any deviations.
+- [X] T043 [P] Verify no-em-dash / no-attribution and docstring coverage across `bench/src/wfbench/*.py`; ensure every public function has a docstring and no function exceeds 50 lines / nesting 3 (owner standards).
+- [X] T044 [P] Add a structured-logging pass: confirm every user-facing action logs input received / action taken / outcome (success/failure with error detail) in `runner.py`, `agent_runner.py`, `grader.py`, `cli.py` (software-engineering skill requirement / Observability).
+- [X] T045 Confirm the credential value never reaches any artifact or log: grep-style unit assertion + manual review of `to_dict()` serializers and logging calls (security). Pass the credential to `docker run` as a name-only `-e ANTHROPIC_API_KEY` / `-e CLAUDE_CODE_OAUTH_TOKEN` (value inherited from the harness env via `DockerCli`'s child-process env), NOT as `-e NAME=<value>`, so the secret never appears in any argv that the docker wrapper or structured logging (T044) might record; if any argv is ever logged, redact credential env values.
+- [X] T046 Run the full gate from `bench/`: `uv run pytest`, `uv run pylint src/wfbench`, `uv run python -m py_compile src/wfbench/*.py`; fix all findings.
+- [~] T047 (DEFERRED - no Anthropic credential in this environment; harness is READY and structurally validated end-to-end, paid run cannot execute here) Execute the `quickstart.md` walkthrough end-to-end against a 1-task subset with a real credential (when available) to validate SC-001/SC-005/SC-007/SC-008/SC-009; record any deviations.
 
 ---
 

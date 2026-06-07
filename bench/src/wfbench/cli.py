@@ -133,6 +133,10 @@ def _cmd_run(args: argparse.Namespace, docker: DockerCli) -> int:
     tasks = discover_tasks(Path(args.corpus))
     selection = _resolve_selection(args, list(tasks))
     cfg = _build_run_config(args, [ref], selection, credential, model)
+    logger.info(
+        "run: workflow=%s model=%s tasks=%d run_id=%s",
+        ref.token, model, len(selection.task_ids), cfg.run_id,
+    )
     runtime_dir, config_dir = _provision(cfg, args, docker)
     run = run_workflow(cfg, ref, tasks, runtime_dir, config_dir, docker)
     report.write_run(run, cfg.run_dir)
@@ -149,6 +153,10 @@ def _cmd_compare(args: argparse.Namespace, docker: DockerCli) -> int:
     tasks = discover_tasks(Path(args.corpus))
     selection = _resolve_selection(args, list(tasks))
     cfg = _build_run_config(args, refs, selection, credential, model)
+    logger.info(
+        "compare: workflows=%s model=%s tasks=%d run_id=%s",
+        [r.token for r in refs], model, len(selection.task_ids), cfg.run_id,
+    )
     runtime_dir, config_dir = _provision(cfg, args, docker)
     comparison = run_comparison(cfg, tasks, runtime_dir, config_dir, docker)
     report.write_comparison(comparison, cfg.run_dir)
