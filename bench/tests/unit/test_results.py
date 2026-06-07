@@ -139,3 +139,29 @@ def test_result_to_dict_serializes_outcome_value_and_no_credential() -> None:
     assert data["outcome"] == "passed"
     assert "credential" not in data
     assert "value" not in data
+
+
+def test_errored_before_edit_result_serializes_and_tallies() -> None:
+    """An errored-before-edit attempt serializes with patch_present False + a reason,
+    and still counts in the run tally (SC-004/SC-006)."""
+    errored = Result(
+        workflow_slug="wf",
+        workflow_token="/wf",
+        task_id="t1",
+        outcome=Outcome.ERRORED,
+        model="m",
+        duration_sec=2.0,
+        reward=None,
+        reason="agent run failed or timed out",
+        patch_present=False,
+    )
+    data = errored.to_dict()
+    assert data["outcome"] == "errored"
+    assert data["patch_present"] is False
+    assert data["reason"]
+
+    run = build_run("r1", "wf", "/wf", "m", {}, [errored, _result("t2", Outcome.PASSED)])
+    # The errored attempt is attempted (denominator) but not a pass.
+    assert run.counts["attempted"] == 2
+    assert run.counts["errored"] == 1
+    assert run.pass_rate == 0.5

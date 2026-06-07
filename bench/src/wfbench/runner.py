@@ -174,6 +174,28 @@ def _selection_dict(selection: Selection) -> dict:
     }
 
 
+def _run_one_task(
+    task_id: str, tasks: dict[str, Task], cfg: RunConfig, ref: WorkflowRef,
+    runtime_dir: Path, config_dir: Path, docker: DockerCli,
+) -> Result:
+    """Run one selected task, recording any unexpected failure as ERRORED (NFR-005).
+
+    A task missing from the corpus is NOT_ATTEMPTED. An unexpected exception is caught
+    here so a single task's failure never aborts the batch.
+    """
+    task = tasks.get(task_id)
+    if task is None:
+        logger.warning("Selected task '%s' not in corpus; recording not_attempted.", task_id)
+        return _missing_task_result(task_id, ref, cfg)
+    try:
+        return run_task(task, cfg, ref, runtime_dir, config_dir, docker)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        # Deliberate last-resort guard (NFR-005): one task's unexpected failure must
+        # never abort the batch. The full traceback is logged; the task is errored.
+        logger.exception("Task '%s': unexpected failure; recording errored.", task_id)
+        return _errored_result(task, ref, cfg, f"unexpected harness error: {exc}")
+
+
 def run_workflow(
     cfg: RunConfig, ref: WorkflowRef, tasks: dict[str, Task], runtime_dir: Path,
     config_dir: Path, docker: DockerCli, started_at: str = "", finished_at: str = "",
@@ -184,15 +206,10 @@ def run_workflow(
     built ``Run`` with counts and pass rate.
     """
     logger.info("Running workflow %s over %d task(s)", ref.token, len(cfg.selection.task_ids))
-    results: list[Result] = []
-    for task_id in cfg.selection.task_ids:
-        task = tasks.get(task_id)
-        if task is None:
-            logger.warning("Selected task '%s' not in corpus; recording not_attempted.", task_id)
-            results.append(_missing_task_result(task_id, ref, cfg))
-            continue
-        results.append(run_task(task, cfg, ref, runtime_dir, config_dir, docker))
-
+    results = [
+        _run_one_task(task_id, tasks, cfg, ref, runtime_dir, config_dir, docker)
+        for task_id in cfg.selection.task_ids
+    ]
     return build_run(
         run_id=cfg.run_id,
         workflow_slug=ref.slug,

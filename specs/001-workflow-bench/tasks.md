@@ -148,13 +148,13 @@ description: "Task list for Workflow Bench implementation"
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] Ensure full token/cost capture in `bench/src/wfbench/agent_runner.py` + `results.py`: parse `agent.json` for token usage and cost (tolerant of missing fields -> None) and populate `Result.tokens` / `Result.cost_usd` / `Result.agent_exit_code` / `Result.duration_sec` (FR-019/SC-004). Add a helper `parse_agent_usage(agent_json_text) -> tuple[dict|None, float|None]` (pure, unit-testable).
-- [ ] T040 [US3] Harden the empty/partial-change path in `bench/src/wfbench/runner.py`: when the agent errors before editing (no usable change), still run grading, record a non-pass with `patch_present=False` and a `reason`, and never abort the batch (US3 acceptance #3 / FR-026). Ensure `result.json` always written even on errored/not-attempted.
+- [X] T039 [US3] Ensure full token/cost capture in `bench/src/wfbench/agent_runner.py` + `results.py`: parse `agent.json` for token usage and cost (tolerant of missing fields -> None) and populate `Result.tokens` / `Result.cost_usd` / `Result.agent_exit_code` / `Result.duration_sec` (FR-019/SC-004). Add a helper `parse_agent_usage(agent_json_text) -> tuple[dict|None, float|None]` (pure, unit-testable).
+- [X] T040 [US3] Harden the empty/partial-change path in `bench/src/wfbench/runner.py`: when the agent errors before editing (no usable change), still run grading, record a non-pass with `patch_present=False` and a `reason`, and never abort the batch (US3 acceptance #3 / FR-026). Ensure `result.json` always written even on errored/not-attempted.
 
 ### Tests for User Story 3
 
-- [ ] T041 [P] [US3] `bench/tests/unit/` test for `parse_agent_usage`: extracts tokens/cost from a representative `agent.json` and returns None gracefully when fields are absent (no exception).
-- [ ] T042 [P] [US3] Extend `bench/tests/unit/test_results.py`: a `Result` for an errored-before-edit attempt serializes with `outcome=errored`/`failed` as appropriate, `patch_present=False`, a non-null `reason`, and still appears in the run tally (SC-004/SC-006).
+- [X] T041 [P] [US3] `bench/tests/unit/` test for `parse_agent_usage`: extracts tokens/cost from a representative `agent.json` and returns None gracefully when fields are absent (no exception).
+- [X] T042 [P] [US3] Extend `bench/tests/unit/test_results.py`: a `Result` for an errored-before-edit attempt serializes with `outcome=errored`/`failed` as appropriate, `patch_present=False`, a non-null `reason`, and still appears in the run tally (SC-004/SC-006).
 
 **Checkpoint**: Every recorded outcome is traceable to its captured change, reward, and logs (NFR-004). All three user stories are independently functional.
 
