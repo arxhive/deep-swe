@@ -11,13 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from . import agent_runner, config, grader
+from . import agent_runner, config, grader, report
 from .agent_runner import AgentOutcome
 from .corpus import Task
 from .docker_cli import DockerCli
 from .errors import AgentError, GradingError
 from .preflight import Credential
-from .results import Outcome, Result, Run, build_run, classify_outcome
+from .results import Comparison, Outcome, Result, Run, build_comparison, build_run, classify_outcome
 from .selection import Selection
 from .usage import parse_agent_usage
 from .write_artifacts import write_json_file, write_text_file
@@ -216,4 +216,27 @@ def _missing_task_result(task_id: str, ref: WorkflowRef, cfg: RunConfig) -> Resu
         duration_sec=0.0,
         reason="task id not present in corpus",
         artifacts_dir=f"tasks/{task_id}/{ref.slug}",
+    )
+
+
+def run_comparison(
+    cfg: RunConfig, tasks: dict[str, Task], runtime_dir: Path, config_dir: Path, docker: DockerCli,
+) -> Comparison:
+    """Run every workflow over the IDENTICAL selection, then build a comparison (FR-021).
+
+    Each workflow's run is written as ``run-<slug>.json`` / ``report-<slug>.md`` under the
+    run dir; the aggregate comparison is built from the per-workflow runs. The same
+    ``cfg.selection`` and ``cfg.model`` apply to every workflow (NFR-002).
+    """
+    runs: list[Run] = []
+    for ref in cfg.workflows:
+        run = run_workflow(cfg, ref, tasks, runtime_dir, config_dir, docker)
+        report.write_run(run, cfg.run_dir, slug_suffix=True)
+        runs.append(run)
+
+    return build_comparison(
+        run_id=cfg.run_id,
+        model=cfg.model,
+        selection=_selection_dict(cfg.selection),
+        runs=runs,
     )
