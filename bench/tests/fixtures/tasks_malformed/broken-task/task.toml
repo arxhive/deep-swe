@@ -1,10 +1,10 @@
 schema_version = "1.1"
 [task]
 name = "synthetic/broken-task"
-base_commit_hash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 [metadata]
 task_id = "broken-task"
 display_title = "Broken synthetic task (missing language key)"
+base_commit_hash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 [verifier]
 timeout_sec = 300.0
 [agent]

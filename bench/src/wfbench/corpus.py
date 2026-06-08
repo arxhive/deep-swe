@@ -61,7 +61,6 @@ def parse_task(task_dir: Path) -> Task:
         raise CorpusError(f"Task '{task_id}': cannot read {TASK_TOML}: {exc}") from exc
 
     metadata = _require(data, "", "metadata", task_id)
-    task = _require(data, "", "task", task_id)
     environment = _require(data, "", "environment", task_id)
     agent = _require(data, "", "agent", task_id)
     verifier = _require(data, "", "verifier", task_id)
@@ -70,7 +69,7 @@ def parse_task(task_dir: Path) -> Task:
         task_id=_require(metadata, "metadata", "task_id", task_id),
         language=_require(metadata, "metadata", "language", task_id),
         display_title=_require(metadata, "metadata", "display_title", task_id),
-        base_commit=_require(task, "task", "base_commit_hash", task_id),
+        base_commit=_require(metadata, "metadata", "base_commit_hash", task_id),
         docker_image=_require(environment, "environment", "docker_image", task_id),
         cpus=int(_require(environment, "environment", "cpus", task_id)),
         memory_mb=int(_require(environment, "environment", "memory_mb", task_id)),

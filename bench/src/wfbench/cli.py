@@ -40,6 +40,25 @@ def _generate_run_id() -> str:
     return f"{stamp}-{suffix}"
 
 
+def _anchor_dir() -> Path:
+    """Locate the repo root holding the task corpus so defaults work from any CWD.
+
+    The corpus lives at ``<repo>/tasks`` while ``uv run`` may execute from ``bench/``.
+    Prefer the current directory, then its parent (running inside ``bench/``), then the
+    package-relative repo root; fall back to the current directory so the standard
+    not-found error still fires when no corpus exists anywhere.
+    """
+    candidates = [
+        Path.cwd(),
+        Path.cwd().parent,
+        Path(__file__).resolve().parents[3],
+    ]
+    for base in candidates:
+        if (base / config.DEFAULT_CORPUS).is_dir():
+            return base
+    return Path.cwd()
+
+
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
     """Add the flags shared by ``run`` and ``compare`` to ``parser``."""
     parser.add_argument("--model", required=True, help="Model id passed to claude --model.")
@@ -48,9 +67,11 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
     selection.add_argument("--tasks", help="Comma-separated explicit task ids.")
     selection.add_argument("--n-tasks", type=int, dest="n_tasks", help="Deterministic sample size.")
     parser.add_argument("--seed", type=int, default=0, help="Seed for --n-tasks (default 0).")
-    parser.add_argument("--corpus", default=config.DEFAULT_CORPUS, help="Corpus root.")
-    parser.add_argument("--jobs-dir", dest="jobs_dir", default=config.DEFAULT_JOBS,
-                        help="Gitignored output root.")
+    anchor = _anchor_dir()
+    parser.add_argument("--corpus", default=str(anchor / config.DEFAULT_CORPUS),
+                        help="Corpus root (default: the repo's tasks/ dir).")
+    parser.add_argument("--jobs-dir", dest="jobs_dir", default=str(anchor / config.DEFAULT_JOBS),
+                        help="Gitignored output root (default: the repo's jobs/ dir).")
     parser.add_argument("--runtime-cache", dest="runtime_cache", default=None,
                         help="Cached Claude runtime location (default <jobs>/.runtime-cache).")
     parser.add_argument("--claude-config", dest="claude_config",

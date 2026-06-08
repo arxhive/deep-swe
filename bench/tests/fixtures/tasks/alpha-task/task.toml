@@ -1,11 +1,11 @@
 schema_version = "1.1"
 [task]
 name = "synthetic/alpha-task"
-base_commit_hash = "aaaa1111bbbb2222cccc3333dddd4444eeee5555"
 [metadata]
 task_id = "alpha-task"
 display_title = "Alpha synthetic task"
 language = "python"
+base_commit_hash = "aaaa1111bbbb2222cccc3333dddd4444eeee5555"
 [verifier]
 timeout_sec = 600.0
 [agent]

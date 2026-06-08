@@ -1,11 +1,11 @@
 schema_version = "1.1"
 [task]
 name = "synthetic/beta-task"
-base_commit_hash = "1111aaaa2222bbbb3333cccc4444dddd5555eeee"
 [metadata]
 task_id = "beta-task"
 display_title = "Beta synthetic task"
 language = "go"
+base_commit_hash = "1111aaaa2222bbbb3333cccc4444dddd5555eeee"
 [verifier]
 timeout_sec = 300.0
 [agent]
