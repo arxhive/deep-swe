@@ -17,12 +17,20 @@ from .errors import PreflightError
 logger = logging.getLogger(__name__)
 
 _NO_CREDENTIAL_MESSAGE = (
-    "No Claude credential found. Set ANTHROPIC_API_KEY, or set CLAUDE_CODE_OAUTH_TOKEN "
-    "(mint one with `claude setup-token`). Aborting before provisioning."
+    "No Claude credential found. Recommended: use your Claude subscription by running "
+    "`claude setup-token` and exporting CLAUDE_CODE_OAUTH_TOKEN (no per-token charges). "
+    "Alternatively set ANTHROPIC_API_KEY, which bills per-token via the Anthropic API. "
+    "Aborting before provisioning."
 )
-_BOTH_CREDENTIALS_MESSAGE = (
-    "Both ANTHROPIC_API_KEY and CLAUDE_CODE_OAUTH_TOKEN are set; exactly one must be "
-    "set. Unset one and retry."
+_API_KEY_BILLING_WARNING = (
+    "Using ANTHROPIC_API_KEY: requests are billed per-token via the Anthropic API. To use "
+    "your Claude subscription instead, run `claude setup-token`, export "
+    "CLAUDE_CODE_OAUTH_TOKEN, and unset ANTHROPIC_API_KEY."
+)
+_PREFER_OAUTH_WARNING = (
+    "Both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY are set; using the subscription "
+    "token and ignoring the API key. Only the token is forwarded to the sandbox, so no "
+    "per-token API charges are incurred."
 )
 _NO_MODEL_MESSAGE = "A model is required; pass --model <model>. There is no default model."
 
@@ -61,23 +69,29 @@ class _DockerProbe(Protocol):
 
 
 def resolve_credential(env: Mapping[str, str]) -> Credential:
-    """Resolve exactly one Claude credential from the environment (FR-025/SC-005).
+    """Resolve the Claude credential, preferring the subscription token (FR-025/SC-005).
+
+    The subscription token (CLAUDE_CODE_OAUTH_TOKEN) is preferred over an API key so a
+    stray ANTHROPIC_API_KEY never silently switches the run to per-token API billing;
+    only the resolved credential is forwarded to the sandbox. An API-key-only run logs
+    a per-token billing warning.
 
     Raises:
-        PreflightError: when neither or both accepted forms are present. The
-            no-credential message names both forms and ``claude setup-token``.
+        PreflightError: when neither accepted form is present. The message recommends
+            the subscription token and ``claude setup-token``.
     """
     api_key = (env.get(ENV_ANTHROPIC_API_KEY) or "").strip()
     oauth = (env.get(ENV_CLAUDE_CODE_OAUTH_TOKEN) or "").strip()
 
-    if api_key and oauth:
-        raise PreflightError(_BOTH_CREDENTIALS_MESSAGE)
-    if api_key:
-        logger.info("Using credential from %s.", ENV_ANTHROPIC_API_KEY)
-        return Credential(kind=CredentialKind.API_KEY, value=api_key)
     if oauth:
-        logger.info("Using credential from %s.", ENV_CLAUDE_CODE_OAUTH_TOKEN)
+        if api_key:
+            logger.warning(_PREFER_OAUTH_WARNING)
+        else:
+            logger.info("Using Claude subscription via %s.", ENV_CLAUDE_CODE_OAUTH_TOKEN)
         return Credential(kind=CredentialKind.OAUTH_TOKEN, value=oauth)
+    if api_key:
+        logger.warning(_API_KEY_BILLING_WARNING)
+        return Credential(kind=CredentialKind.API_KEY, value=api_key)
     raise PreflightError(_NO_CREDENTIAL_MESSAGE)
 
 

@@ -24,6 +24,42 @@ uv run wfbench prepare-runtime                           # build the cached linu
 uv run pytest                                            # unit tests (docker tests auto-skip)
 ```
 
+## Authentication (use your subscription, not an API key)
+
+`wfbench` drives Claude Code inside each task container, so it needs a credential. Two
+forms are accepted, and the tool prefers the subscription:
+
+1. Subscription token (recommended, no per-token charges):
+   ```bash
+   claude setup-token            # interactive OAuth; requires a Claude Pro/Max subscription
+   export CLAUDE_CODE_OAUTH_TOKEN=<the-token-it-prints>     # sk-ant-oat01-...
+   ```
+   This token authenticates as your Claude subscription and counts against your
+   subscription quota, the same as interactive Claude Code - it is NOT billed per-token.
+
+2. API key (bills per-token via the Anthropic API):
+   ```bash
+   export ANTHROPIC_API_KEY=sk-ant-api03-...
+   ```
+
+How the tool protects your billing:
+
+- It forwards ONLY the chosen credential into the sandbox, by variable name (the value
+  is never placed in a command line or written to any artifact).
+- If BOTH variables are set, the subscription token wins and the API key is ignored (with
+  a warning). This matters because Claude Code otherwise prefers `ANTHROPIC_API_KEY` and
+  would bill per-token. An API-key-only run prints a per-token billing warning.
+- A run aborts before any container starts if no credential is present.
+
+Caveat - subscription rate limits: the subscription quota has a rolling window plus a
+weekly cap and is shared with your interactive Claude usage. Heavyweight workflows (for
+example `/story-to-live`, which spawns sub-agents) consume a lot per task, so start with a
+small `--n-tasks` and grow once you have a feel for the burn. A task that hits a rate
+limit is recorded as `errored` and the batch continues (it is not a false pass).
+
+Note: keep `ANTHROPIC_API_KEY` and any `apiKeyHelper` out of your `~/.claude/settings.json`
+if you want to guarantee subscription billing, since settings can also supply a key.
+
 ## Pure-model baseline (reference run)
 
 Pass `none` (or the aliases `model` / `baseline`) as the workflow to benchmark vanilla

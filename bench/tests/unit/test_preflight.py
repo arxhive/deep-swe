@@ -49,15 +49,28 @@ def test_resolve_no_credential_message_names_both_forms() -> None:
     assert "claude setup-token" in message
 
 
-def test_resolve_both_credentials_rejected_message_is_actionable() -> None:
-    """The both-credentials message names both vars and tells the user what to do."""
-    with pytest.raises(PreflightError) as excinfo:
-        resolve_credential({"ANTHROPIC_API_KEY": "a", "CLAUDE_CODE_OAUTH_TOKEN": "b"})
+def test_resolve_prefers_oauth_when_both_set() -> None:
+    """When both are set, the subscription token wins so no per-token API billing occurs."""
+    cred = resolve_credential({"ANTHROPIC_API_KEY": "sk-a", "CLAUDE_CODE_OAUTH_TOKEN": "oat-b"})
+    assert cred.kind is CredentialKind.OAUTH_TOKEN
+    assert cred.env_var == "CLAUDE_CODE_OAUTH_TOKEN"
+    assert cred.value == "oat-b"
 
-    message = str(excinfo.value)
-    assert "ANTHROPIC_API_KEY" in message
-    assert "CLAUDE_CODE_OAUTH_TOKEN" in message
-    assert "Unset one" in message
+
+def test_resolve_both_set_warns_api_key_ignored(caplog: pytest.LogCaptureFixture) -> None:
+    """Selecting the token over a present API key warns that the key is ignored."""
+    with caplog.at_level("WARNING"):
+        resolve_credential({"ANTHROPIC_API_KEY": "sk-a", "CLAUDE_CODE_OAUTH_TOKEN": "oat-b"})
+    assert "ignoring the API key" in caplog.text
+
+
+def test_resolve_api_key_only_warns_per_token_billing(caplog: pytest.LogCaptureFixture) -> None:
+    """An API-key-only run warns that requests bill per-token and points to setup-token."""
+    with caplog.at_level("WARNING"):
+        cred = resolve_credential({"ANTHROPIC_API_KEY": "sk-a"})
+    assert cred.kind is CredentialKind.API_KEY
+    assert "billed per-token" in caplog.text
+    assert "claude setup-token" in caplog.text
 
 
 def test_resolve_blank_values_treated_as_absent() -> None:

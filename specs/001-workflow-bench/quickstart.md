@@ -6,9 +6,15 @@ A runnable walkthrough of the `wfbench` CLI once implemented. All commands run f
 
 - `uv` installed (verified present: 0.8.22).
 - Docker Desktop running (verified: Docker 29.4.0). Images are `linux/amd64`; the host is arm64 macOS - the harness passes `--platform linux/amd64` automatically.
-- Exactly one Claude credential exported:
-  - `export ANTHROPIC_API_KEY=...`  OR
-  - `export CLAUDE_CODE_OAUTH_TOKEN=$(claude setup-token)`
+- A Claude credential exported. Use your subscription (no per-token charges):
+  ```bash
+  claude setup-token            # interactive; requires a Claude Pro/Max subscription
+  export CLAUDE_CODE_OAUTH_TOKEN=<the-token-it-prints>   # sk-ant-oat01-...
+  ```
+  An `ANTHROPIC_API_KEY` also works but bills per-token via the Anthropic API. If both
+  are set the subscription token wins and the API key is ignored (only the chosen
+  credential is forwarded to the sandbox, so no accidental API charges). See
+  "Authentication" in `bench/README.md`.
 - The owner's `~/.claude` with `commands/` and `skills/` (resolved automatically even though they are symlinks into dotfiles).
 
 ## Install / sync
