@@ -44,3 +44,30 @@ def test_build_prompt_token_first_then_instruction() -> None:
     assert lines[0] == "/somecode"
     assert lines[1] == ""
     assert prompt.endswith(instruction)
+
+
+@pytest.mark.parametrize("raw", ["none", "model", "baseline", "NONE", "Baseline", " none "])
+def test_parse_reserved_bare_word_is_baseline(raw: str) -> None:
+    """Reserved bare words select the pure-model baseline with a stable identity."""
+    ref = parse_workflow_ref(raw)
+    assert ref.is_baseline is True
+    assert ref.slug == "baseline"
+    assert ref.token == "baseline"
+
+
+def test_parse_slashed_reserved_word_is_real_command() -> None:
+    """A leading slash forces a real command even for a reserved name."""
+    ref = parse_workflow_ref("/none")
+    assert ref.is_baseline is False
+    assert ref.slug == "none"
+    assert ref.token == "/none"
+
+
+def test_build_prompt_baseline_is_instruction_only() -> None:
+    """The baseline prompt is the task instruction verbatim, with no slash token."""
+    ref = parse_workflow_ref("none")
+    instruction = "Implement the feature.\nWith `code`."
+    prompt = build_prompt(ref, instruction)
+
+    assert prompt == instruction
+    assert not prompt.startswith("/")

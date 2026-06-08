@@ -67,12 +67,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="Benchmark one workflow over a subset.")
     run_parser.add_argument("--command", required=True,
-                            help="The workflow under test (e.g. /somecode).")
+                            help="The workflow under test (e.g. /somecode), or "
+                                 "'none' for the pure-model baseline (no slash-command).")
     _add_common_args(run_parser)
 
     compare_parser = subparsers.add_parser("compare", help="Compare two-plus workflows.")
     compare_parser.add_argument("--command", action="append", default=[], dest="commands",
-                                help="A workflow under test; repeat at least twice.")
+                                help="A workflow under test; repeat at least twice. Use "
+                                     "'none' as one entry for the pure-model baseline.")
     _add_common_args(compare_parser)
 
     prep_parser = subparsers.add_parser("prepare-runtime", help="Build the cached Claude runtime.")
