@@ -127,19 +127,39 @@ class DockerCli:
         """Run ``docker build`` for ``linux/amd64`` (platform flag injected)."""
         return self._invoke("build", build_args, timeout=timeout)
 
-    def exec(
-        self, container_id: str, command: Sequence[str], timeout: Optional[float] = None,
-        env: Optional[Sequence[str]] = None, workdir: Optional[str] = None,
-        stdin_text: Optional[str] = None,
-    ) -> DockerResult:
-        """Run ``docker exec`` in a running container (NO platform flag)."""
+    @staticmethod
+    def _exec_rest(
+        container_id: str, command: Sequence[str], env: Optional[Sequence[str]],
+        workdir: Optional[str], with_stdin: bool,
+    ) -> list[str]:
+        """Build the argv after ``docker exec``.
+
+        ``-i`` is required when a prompt is piped on stdin: ``docker exec`` discards the
+        host's stdin without it, so claude would see no input and abort. Env vars are
+        forwarded by NAME only (value inherited from the child env, never in argv).
+        """
         rest: list[str] = []
+        if with_stdin:
+            rest.append("-i")
         for name in env or []:
             rest += ["-e", name]
         if workdir is not None:
             rest += ["-w", workdir]
         rest.append(container_id)
         rest += list(command)
+        return rest
+
+    def exec(
+        self, container_id: str, command: Sequence[str], timeout: Optional[float] = None,
+        env: Optional[Sequence[str]] = None, workdir: Optional[str] = None,
+        stdin_text: Optional[str] = None,
+    ) -> DockerResult:
+        """Run ``docker exec`` in a running container (NO platform flag).
+
+        Passes ``-i`` when ``stdin_text`` is provided so the piped prompt reaches the
+        container process.
+        """
+        rest = self._exec_rest(container_id, command, env, workdir, stdin_text is not None)
         return self._invoke("exec", rest, timeout=timeout, stdin_text=stdin_text)
 
     def network_disconnect(self, container_id: str, network: str) -> DockerResult:
