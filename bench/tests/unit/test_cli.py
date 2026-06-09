@@ -85,6 +85,16 @@ def test_run_requires_exactly_one_selection(synthetic_corpus, tmp_path):
     assert exc.value.code == cli.EXIT_USAGE
 
 
+def test_run_rejects_multiple_commands(stub_pipeline, synthetic_corpus, tmp_path):
+    """Two --command on `run` is a usage error (exit 2), not a silent drop of all but one."""
+    jobs = tmp_path / "jobs"
+    argv = (
+        ["run", "--command", "none", "--command", "/specflow", "--task", "alpha-task"]
+        + _base_run_args(synthetic_corpus, jobs)
+    )
+    assert cli.main(argv) == cli.EXIT_USAGE
+
+
 def test_run_unknown_task_exits_usage(stub_pipeline, synthetic_corpus, tmp_path):
     """An unknown explicit task id maps to the usage exit code (2)."""
     jobs = tmp_path / "jobs"

@@ -87,9 +87,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
     run_parser = subparsers.add_parser("run", help="Benchmark one workflow over a subset.")
-    run_parser.add_argument("--command", required=True,
-                            help="The workflow under test (e.g. /somecode), or "
-                                 "'none' for the pure-model baseline (no slash-command).")
+    run_parser.add_argument("--command", required=True, action="append", dest="command",
+                            help="The single workflow under test (e.g. /somecode), or "
+                                 "'none' for the pure-model baseline. For two or more "
+                                 "workflows use `wfbench compare`.")
     _add_common_args(run_parser)
 
     compare_parser = subparsers.add_parser("compare", help="Compare two-plus workflows.")
@@ -149,9 +150,25 @@ def _provision(cfg: RunConfig, args: argparse.Namespace, docker: DockerCli) -> t
     return runtime_dir, config_dir
 
 
+def _single_run_command(commands: list) -> str:
+    """Return the one workflow for ``run``, or error if several were passed.
+
+    ``--command`` is repeatable only so that passing it twice (a common attempt to
+    compare) fails loudly with a pointer to ``compare`` instead of silently dropping
+    all but the last.
+    """
+    if len(commands) > 1:
+        joined = " ".join(f"--command {c}" for c in commands)
+        raise SelectionError(
+            f"`run` benchmarks a single workflow but {len(commands)} were given "
+            f"({', '.join(commands)}). To compare workflows use: wfbench compare {joined} ..."
+        )
+    return commands[0]
+
+
 def _cmd_run(args: argparse.Namespace, docker: DockerCli) -> int:
     """Execute the ``run`` subcommand end-to-end."""
-    ref = parse_workflow_ref(args.command)
+    ref = parse_workflow_ref(_single_run_command(args.command))
     credential, model = preflight_run(_env(), args.model, docker)
     tasks = discover_tasks(Path(args.corpus))
     selection = _resolve_selection(args, list(tasks))
