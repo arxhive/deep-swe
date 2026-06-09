@@ -6,7 +6,30 @@ from wfbench.results import (
     build_comparison,
     build_run,
     classify_outcome,
+    result_total_tokens,
 )
+
+
+def _result_with_tokens(tokens) -> Result:
+    """Build a Result carrying the given tokens dict (or None)."""
+    return Result("s", "/s", "t", Outcome.PASSED, "m", 1.0, tokens=tokens)
+
+
+def test_result_total_tokens_prefers_total_field() -> None:
+    """The precomputed total field is used when present."""
+    assert result_total_tokens(_result_with_tokens({"total": 500})) == 500
+
+
+def test_result_total_tokens_sums_input_and_output() -> None:
+    """Without a total field, input + output are summed."""
+    assert result_total_tokens(_result_with_tokens({"input_tokens": 30, "output_tokens": 20})) == 50
+
+
+def test_result_total_tokens_none_when_unknown() -> None:
+    """No usage, empty dict, or cache-only usage yields None (not a misleading 0)."""
+    assert result_total_tokens(_result_with_tokens(None)) is None
+    assert result_total_tokens(_result_with_tokens({})) is None
+    assert result_total_tokens(_result_with_tokens({"cache_read_input_tokens": 999})) is None
 
 
 def _result(task_id: str, outcome: Outcome, slug: str = "wf") -> Result:

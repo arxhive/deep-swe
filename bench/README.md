@@ -83,8 +83,9 @@ bare words `none` / `model` / `baseline` are reserved for the baseline.
   `--command` more than once is an error (it points you to `compare`) - it does NOT compare.
 - `compare --command X --command Y [--command Z ...]` benchmarks two or more workflows over
   the IDENTICAL subset with the same model, and writes `comparison.md` + `comparison.json`
-  (per-workflow pass rates, a per-task outcome matrix, and a ranking over the tasks every
-  workflow attempted). This is the only command that produces a comparison.
+  (per-workflow pass rates, a per-task outcome matrix, a ranking over the tasks every
+  workflow attempted, and per-task duration + token tables with per-workflow totals). This
+  is the only command that produces a comparison.
 - Both share the same selection flags and require `--model`:
   `--task <id>` | `--tasks <id,id>` | `--n-tasks <N> --seed <S>`.
 - `compare` reruns every workflow fresh over the whole subset (it does not reuse a prior

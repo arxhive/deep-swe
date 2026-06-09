@@ -155,6 +155,45 @@ def test_print_summary_comparison_includes_ranking_and_each_workflow(capsys, tmp
     assert str(tmp_path) in out
 
 
+def _timed_result(task_id, outcome, slug, reward, duration, total_tokens) -> Result:
+    """Build a Result with explicit duration and total tokens for cost-summary tests."""
+    tokens = None if total_tokens is None else {"total": total_tokens}
+    return Result(
+        workflow_slug=slug, workflow_token=f"/{slug}", task_id=task_id, outcome=outcome,
+        model="m", duration_sec=duration, reward=reward, tokens=tokens,
+    )
+
+
+def test_comparison_md_and_json_carry_duration_and_token_totals(tmp_path: Path):
+    """comparison.md adds per-task duration + token tables with per-workflow totals,
+    and comparison.json carries the same totals per workflow."""
+    selection_ids = ["alpha-task", "beta-task"]
+    selection = {"mode": "explicit", "n": None, "seed": None, "task_ids": selection_ids}
+    run_a = build_run("r", "a", "/a", "m", selection, [
+        _timed_result("alpha-task", Outcome.PASSED, "a", 1.0, 2.0, 111),
+        _timed_result("beta-task", Outcome.FAILED, "a", 0.0, 3.0, 222),
+    ])
+    run_b = build_run("r", "b", "/b", "m", selection, [
+        _timed_result("alpha-task", Outcome.FAILED, "b", 0.0, 10.0, 1111),
+        _timed_result("beta-task", Outcome.PASSED, "b", 1.0, 20.0, 2222),
+    ])
+    comparison = build_comparison("r", "m", selection, [run_a, run_b])
+    write_comparison(comparison, tmp_path)
+
+    md = (tmp_path / "comparison.md").read_text(encoding="utf-8")
+    assert "Duration per task" in md and "Tokens per task" in md
+    assert "| **Total** |" in md
+    assert "5.0" in md and "30.0" in md      # per-workflow duration totals
+    assert "333" in md and "3,333" in md     # per-workflow token totals (comma-formatted)
+
+    data = json.loads((tmp_path / "comparison.json").read_text(encoding="utf-8"))
+    stats = {s["workflow_slug"]: s for s in data["per_workflow"]}
+    assert stats["a"]["total_duration_sec"] == 5.0
+    assert stats["a"]["total_tokens"] == 333
+    assert stats["b"]["total_duration_sec"] == 30.0
+    assert stats["b"]["total_tokens"] == 3333
+
+
 def test_write_run_slug_suffix_names_files_per_workflow(tmp_path: Path):
     """write_run with slug_suffix=True writes workflow-slug-named files (FR-023 comparison sub-runs)."""
     run = _single_run()

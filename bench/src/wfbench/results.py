@@ -216,17 +216,39 @@ def _common_attempted(runs: Sequence[Run]) -> list[str]:
     return sorted(common)
 
 
+def result_total_tokens(result: Result) -> Optional[int]:
+    """Return one attempt's total tokens (input + output), or None when unknown.
+
+    Prefers the precomputed ``total`` field; otherwise sums whichever of input/output
+    token counts are present. Cache tokens are excluded (they are reused context, not
+    new generation). None means the agent reported no usage (e.g. an early error).
+    """
+    tokens = result.tokens
+    if not isinstance(tokens, dict):
+        return None
+    if isinstance(tokens.get("total"), int):
+        return tokens["total"]
+    have_input = isinstance(tokens.get("input_tokens"), int)
+    have_output = isinstance(tokens.get("output_tokens"), int)
+    if have_input or have_output:
+        return tokens.get("input_tokens", 0) + tokens.get("output_tokens", 0)
+    return None
+
+
 def _per_workflow_stats(run: Run, common_ids: Sequence[str]) -> dict:
-    """Return one workflow's own and common-attempted pass rates plus counts."""
+    """Return one workflow's own and common-attempted pass rates, counts, and totals."""
     common_set = set(common_ids)
     passed = _passed_ids(run)
     common_passed = len(passed & common_set)
     common_rate = common_passed / len(common_set) if common_set else 0.0
+    token_values = [result_total_tokens(r) for r in run.results]
     return {
         "workflow_slug": run.workflow_slug,
         "pass_rate": run.pass_rate,
         "common_attempted_pass_rate": common_rate,
         "counts": run.counts,
+        "total_duration_sec": sum(r.duration_sec for r in run.results),
+        "total_tokens": sum(value for value in token_values if value is not None),
     }
 
 

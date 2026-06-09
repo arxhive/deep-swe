@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 from . import config
-from .results import Comparison, Run
+from .results import Comparison, Run, result_total_tokens
 from .write_artifacts import write_json_file, write_text_file
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,44 @@ def _comparison_per_workflow_table(comparison: Comparison) -> str:
     return header + "\n".join(rows) + "\n"
 
 
+def _per_task_value_table(comparison: Comparison, value_of, fmt) -> str:
+    """Render a per-task table (rows are tasks, columns are workflows) with a Total row.
+
+    ``value_of(result)`` returns the numeric value or None; ``fmt(number)`` formats a
+    cell. A missing or None value renders as ``-`` and does not contribute to the total.
+    """
+    slugs = [run.workflow_slug for run in comparison.runs]
+    lookup = {run.workflow_slug: {r.task_id: r for r in run.results} for run in comparison.runs}
+    header = "| Task | " + " | ".join(slugs) + " |\n"
+    header += "|------|" + "|".join(["---"] * len(slugs)) + "|\n"
+    totals = {slug: 0 for slug in slugs}
+    rows = []
+    for row in comparison.matrix:
+        task_id = row["task_id"]
+        cells = []
+        for slug in slugs:
+            result = lookup[slug].get(task_id)
+            value = value_of(result) if result is not None else None
+            if value is None:
+                cells.append("-")
+            else:
+                cells.append(fmt(value))
+                totals[slug] += value
+        rows.append(f"| {task_id} | " + " | ".join(cells) + " |")
+    rows.append("| **Total** | " + " | ".join(fmt(totals[slug]) for slug in slugs) + " |")
+    return header + "\n".join(rows) + "\n"
+
+
+def _comparison_duration_table(comparison: Comparison) -> str:
+    """Render the per-task agent (workflow) duration in seconds, with per-workflow totals."""
+    return _per_task_value_table(comparison, lambda r: r.duration_sec, lambda v: f"{v:.1f}")
+
+
+def _comparison_tokens_table(comparison: Comparison) -> str:
+    """Render the per-task total tokens (input + output), with per-workflow totals."""
+    return _per_task_value_table(comparison, result_total_tokens, lambda v: f"{v:,}")
+
+
 def _comparison_markdown(comparison: Comparison) -> str:
     """Render the full comparison Markdown report."""
     common = comparison.common_attempted_ids
@@ -117,6 +155,17 @@ def _comparison_markdown(comparison: Comparison) -> str:
         "## Per-task outcome matrix",
         "",
         _comparison_matrix_table(comparison),
+        "## Duration per task (seconds)",
+        "",
+        "Agent (workflow) wall-clock; the Total row is each workflow's total over all tasks.",
+        "",
+        _comparison_duration_table(comparison),
+        "## Tokens per task (input + output)",
+        "",
+        "Total tokens reported by each run (cache tokens excluded); `-` means no usage "
+        "was reported. The Total row is each workflow's total over all tasks.",
+        "",
+        _comparison_tokens_table(comparison),
     ]
     return "\n".join(lines)
 
