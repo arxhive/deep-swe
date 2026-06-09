@@ -8,11 +8,18 @@ Secret and large/host-specific directories are excluded. No credential is ever c
 auth is provided via env.
 """
 
+import json
 import logging
 import shutil
 from pathlib import Path
 
-from .config import CONFIG_EXCLUDE, CONFIG_INCLUDE, CONFIG_REQUIRED
+from .config import (
+    CONFIG_EXCLUDE,
+    CONFIG_INCLUDE,
+    CONFIG_REQUIRED,
+    SETTINGS_NAME,
+    SETTINGS_SANDBOX_DROP_KEYS,
+)
 from .errors import ConfigError
 
 logger = logging.getLogger(__name__)
@@ -36,6 +43,35 @@ def _copy_entry(src_entry: Path, dest_entry: Path) -> None:
         shutil.copytree(real, dest_entry, symlinks=False, ignore=_ignore_excluded)
     else:
         shutil.copy2(real, dest_entry)
+
+
+def _sanitize_settings(dest: Path) -> None:
+    """Strip host-coupled keys from the sandbox ``settings.json`` (defense + reliability).
+
+    Drops hooks/statusLine/plugins/project-MCP (host commands or host-only state that
+    break a headless container run) and apiKeyHelper/proxyAuthHelper/awsAuthRefresh (so
+    they cannot override the forwarded subscription credential). A missing, non-object,
+    or unparseable settings file is left as-is with a warning (non-fatal).
+    """
+    settings_path = dest / SETTINGS_NAME
+    if not settings_path.is_file():
+        return
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not parse %s to sanitize; leaving as-is: %s", settings_path, exc)
+        return
+    if not isinstance(data, dict):
+        logger.warning("Sandbox %s is not a JSON object; leaving as-is.", SETTINGS_NAME)
+        return
+
+    removed = [key for key in SETTINGS_SANDBOX_DROP_KEYS if key in data]
+    if not removed:
+        return
+    for key in removed:
+        data.pop(key, None)
+    settings_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    logger.info("Sanitized sandbox %s (removed: %s).", SETTINGS_NAME, ", ".join(removed))
 
 
 def _verify_required(dest: Path) -> None:
@@ -74,6 +110,7 @@ def materialize_config(src: Path, dest: Path) -> Path:
         _copy_entry(src_entry, dest / name)
         logger.debug("Copied config entry: %s", name)
 
+    _sanitize_settings(dest)
     _verify_required(dest)
     logger.info("Materialized Claude config into %s", dest)
     return dest

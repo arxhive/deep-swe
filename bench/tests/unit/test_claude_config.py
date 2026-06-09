@@ -1,5 +1,6 @@
 """Unit tests for materializing the owner's Claude config (R4, C-009)."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -100,3 +101,33 @@ def test_materialize_missing_source_raises(tmp_path: Path) -> None:
     """A non-existent source config raises ConfigError."""
     with pytest.raises(ConfigError):
         materialize_config(tmp_path / "nope", tmp_path / "out")
+
+
+def test_materialize_sanitizes_host_coupled_settings(tmp_path: Path) -> None:
+    """Hooks/statusLine/plugins/auth-helpers are stripped; benign keys are preserved.
+
+    These invoke host commands or override the forwarded credential, breaking a headless
+    container run; benign behavior settings must survive.
+    """
+    config = tmp_path / ".claude"
+    (config / "commands").mkdir(parents=True)
+    (config / "skills").mkdir()
+    settings = {
+        "model": "opus",
+        "permissions": {"defaultMode": "bypassPermissions"},
+        "hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": "host-script"}]}]},
+        "statusLine": {"type": "command", "command": "npx powerline"},
+        "enabledPlugins": {"pr-review-toolkit@x": True},
+        "enableAllProjectMcpServers": True,
+        "apiKeyHelper": "/usr/local/bin/get-key.sh",
+    }
+    (config / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+
+    materialize_config(config, tmp_path / "out")
+
+    written = json.loads((tmp_path / "out" / "settings.json").read_text(encoding="utf-8"))
+    for dropped in ("hooks", "statusLine", "enabledPlugins",
+                    "enableAllProjectMcpServers", "apiKeyHelper"):
+        assert dropped not in written
+    assert written["model"] == "opus"
+    assert written["permissions"] == {"defaultMode": "bypassPermissions"}

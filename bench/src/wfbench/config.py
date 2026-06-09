@@ -44,6 +44,12 @@ DEFAULT_BRIDGE_NETWORK = "bridge"
 ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY"
 ENV_CLAUDE_CODE_OAUTH_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 
+# Claude Code refuses --dangerously-skip-permissions/bypassPermissions as root unless
+# IS_SANDBOX=1 (verified in the claude binary: getuid()===0 && IS_SANDBOX!=="1" -> abort).
+# The task containers run as root, so the agent exec sets this.
+ENV_IS_SANDBOX = "IS_SANDBOX"
+IS_SANDBOX_VALUE = "1"
+
 # --- Run identity ---
 RUN_ID_TIMESTAMP_FORMAT = "%Y%m%dT%H%M%SZ"
 RUN_ID_SUFFIX_BYTES = 3  # 3 bytes -> 6 hex chars
@@ -79,6 +85,22 @@ CONFIG_EXCLUDE = (
     "debug",
     "ide",
     "mcp-needs-auth-cache.json",
+)
+
+# Settings keys stripped from the sandbox copy of settings.json: they invoke host
+# commands or host-only state that breaks or pollutes a headless container run, and
+# they are interactive-environment config, not workflow logic. apiKeyHelper/proxyAuthHelper
+# are dropped so they cannot override the forwarded subscription credential.
+SETTINGS_NAME = "settings.json"
+SETTINGS_SANDBOX_DROP_KEYS = (
+    "hooks",
+    "statusLine",
+    "enabledPlugins",
+    "enableAllProjectMcpServers",
+    "mcpServers",
+    "apiKeyHelper",
+    "proxyAuthHelper",
+    "awsAuthRefresh",
 )
 
 # Required files for a directory to count as a valid corpus task.

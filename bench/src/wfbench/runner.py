@@ -74,19 +74,31 @@ def _terminal_result(
     )
 
 
+def _agent_failed(agent: AgentOutcome, patch_present: bool) -> bool:
+    """Return True when the agent did not complete normally and left nothing to grade.
+
+    A timeout always counts as a failure. A non-zero exit counts only when NO patch was
+    produced (a crash, e.g. claude refusing to start) - a non-zero exit that still left a
+    gradeable change is deferred to the reward, since it may still pass.
+    """
+    if agent.timed_out:
+        return True
+    return agent.exit_code not in (0, None) and not patch_present
+
+
 def _assemble_result(
     task: Task, ref: WorkflowRef, cfg: RunConfig, agent: AgentOutcome,
     grading: grader.GradingOutcome,
 ) -> Result:
     """Classify the outcome and assemble the per-task ``Result`` (FR-019/020).
 
-    An agent timeout or a verifier crash classifies as ERRORED. A non-zero agent
-    exit that still produced a gradeable change is classified by the reward (it may
-    still pass), so it is not forced to ERRORED here.
+    An agent timeout, a crash that produced no patch, or a verifier crash classifies as
+    ERRORED. A non-zero agent exit that still produced a gradeable change is classified by
+    the reward (it may still pass), so it is not forced to ERRORED.
     """
     outcome, reason = classify_outcome(
         reward=grading.reward,
-        agent_failed=agent.timed_out,
+        agent_failed=_agent_failed(agent, grading.patch_present),
         verifier_failed=grading.crashed,
     )
     tokens, cost = parse_agent_usage(agent.stdout)

@@ -90,6 +90,29 @@ def _prepare_logs(container_id: str, docker: DockerCli) -> None:
     docker.exec(container_id, ["mkdir", "-p", verifier_dir, artifacts_dir, work_dir])
 
 
+def _build_agent_command(model: str) -> list[str]:
+    """Build the ``env ... claude -p`` argv executed inside the container.
+
+    Sets HOME (so claude finds the mounted ``.claude``), a PATH with the runtime bins
+    first, and ``IS_SANDBOX=1`` - claude refuses ``bypassPermissions`` as root (the task
+    containers run as root) unless this is set. ``IS_SANDBOX`` is not a secret, so it is
+    inlined here; the credential is forwarded separately by name (never in argv).
+    """
+    runtime = config.MOUNT_RUNTIME
+    return [
+        "env",
+        f"HOME={config.CONTAINER_HOME}",
+        f"{config.ENV_IS_SANDBOX}={config.IS_SANDBOX_VALUE}",
+        f"PATH={runtime}/npm/bin:{runtime}:/usr/local/sbin:/usr/local/bin:"
+        "/usr/sbin:/usr/bin:/sbin:/bin",
+        "claude", "-p",
+        "--permission-mode", "bypassPermissions",
+        "--output-format", "json",
+        "--model", model,
+        "--append-system-prompt", config.BENCHMARK_DIRECTIVE,
+    ]
+
+
 def _exec_agent(
     container_id: str, task: Task, credential: Credential, prompt_text: str, model: str,
     docker: DockerCli,
@@ -98,17 +121,7 @@ def _exec_agent(
 
     Returns the docker result and whether the host-side timeout fired.
     """
-    home = config.CONTAINER_HOME
-    command = [
-        "env", f"HOME={home}",
-        f"PATH={config.MOUNT_RUNTIME}/npm/bin:{config.MOUNT_RUNTIME}:/usr/local/sbin:"
-        "/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "claude", "-p",
-        "--permission-mode", "bypassPermissions",
-        "--output-format", "json",
-        "--model", model,
-        "--append-system-prompt", config.BENCHMARK_DIRECTIVE,
-    ]
+    command = _build_agent_command(model)
     try:
         result = docker.exec(
             container_id, command, timeout=task.agent_timeout_sec,
