@@ -76,3 +76,49 @@ uv run wfbench compare --command none --command /somecode --command /story-to-li
 
 A real slash-command literally named `/none` must be written with its leading slash; the
 bare words `none` / `model` / `baseline` are reserved for the baseline.
+
+## `run` vs `compare`
+
+- `run --command X` benchmarks ONE workflow and writes `report.md` + `run.json`. Passing
+  `--command` more than once is an error (it points you to `compare`) - it does NOT compare.
+- `compare --command X --command Y [--command Z ...]` benchmarks two or more workflows over
+  the IDENTICAL subset with the same model, and writes `comparison.md` + `comparison.json`
+  (per-workflow pass rates, a per-task outcome matrix, and a ranking over the tasks every
+  workflow attempted). This is the only command that produces a comparison.
+- Both share the same selection flags and require `--model`:
+  `--task <id>` | `--tasks <id,id>` | `--n-tasks <N> --seed <S>`.
+- `compare` reruns every workflow fresh over the whole subset (it does not reuse a prior
+  `run`), so cost scales with `workflows x tasks`. A single task that all workflows pass is
+  a tie and tells you nothing - use `--n-tasks` to find tasks where they diverge.
+
+## Reading results
+
+Every run is a directory under the gitignored `jobs/<run-id>/`:
+
+- Top level: `report.md` + `run.json` (a `run`), or `comparison.md` + `comparison.json` (a `compare`).
+- Per attempt, under `tasks/<task-id>/<workflow-slug>/` (the baseline slug is `baseline`):
+  - `result.json` - outcome, reward, exit codes, durations, reason
+  - `agent.json` - claude's JSON result: token `usage`, cost, and on failure `is_error` / `api_error_status`
+  - `agent.err` - claude stderr (the FIRST place to look when a task fails)
+  - `verifier.log` - the graded test run
+  - `model.patch` - the code change the workflow produced (empty = it changed nothing)
+  - `reward.txt` - raw verifier reward (`1` = pass)
+
+## Outcomes
+
+- `passed` - the verifier awarded a pass (reward 1).
+- `failed` - the workflow ran and produced a change, but the tests did not pass (a genuine quality result).
+- `errored` - the agent did not complete and left nothing gradeable (timeout, crash, or an auth/rate-limit error). This is an infra problem, NOT a quality signal - re-run it.
+- `not_attempted` - the task's container could not be provisioned.
+
+Headline pass rate is `passed / attempted`, where `attempted = passed + failed + errored`.
+
+## Troubleshooting
+
+When a task is `errored` (or `failed` unexpectedly), read `tasks/<id>/<slug>/agent.err`, then `agent.json`:
+
+- `agent.json` shows `api_error_status: 401` -> the token is wrong or expired; re-run `claude setup-token` and re-export `CLAUDE_CODE_OAUTH_TOKEN`.
+- `agent.json` shows `api_error_status: 429` -> subscription rate limit (shared with your interactive use); wait for the window to reset or lower `--n-tasks`.
+- `agent.json` is empty and `agent.err` says "Input must be provided ..." -> stdin was not forwarded to the container (fixed; update to the latest build).
+- `agent.err` says "cannot be used with root" -> the sandbox flag was missing (fixed; the harness sets `IS_SANDBOX=1`).
+- `model.patch` is empty with `is_error: false` -> claude authenticated and ran but chose not to edit; that is a real (if poor) result for that workflow on that task.
